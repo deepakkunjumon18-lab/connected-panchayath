@@ -184,7 +184,7 @@ export default function CitizenApplyWizard() {
     if (code) {
       loadData();
     }
-  }, [code, user]);
+  }, [code]);
 
   // Helper for step navigation validation
   const validateStep = (step) => {

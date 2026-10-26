@@ -24,9 +24,10 @@ export function AuthProvider({ children }) {
       if (token) {
         try {
           const res = await authApi.getMe();
-          if (res.success && res.data) {
-            setUser(res.data);
-            localStorage.setItem('cp_user', JSON.stringify(res.data));
+          const userData = res?.data || (res?.user_id ? res : null);
+          if (userData && userData.user_id) {
+            setUser(userData);
+            localStorage.setItem('cp_user', JSON.stringify(userData));
           }
         } catch (err) {
           console.error('Failed to restore session:', err);
@@ -102,9 +103,11 @@ export function AuthProvider({ children }) {
   const refreshUser = async () => {
     try {
       const res = await authApi.getMe();
-      if (res.success && res.data) {
-        setUser(res.data);
-        localStorage.setItem('cp_user', JSON.stringify(res.data));
+      const userData = res?.data || (res?.user_id ? res : null);
+      if (userData && userData.user_id) {
+        setUser(userData);
+        localStorage.setItem('cp_user', JSON.stringify(userData));
+        return userData;
       }
     } catch (err) {
       console.error('Failed to refresh user:', err);

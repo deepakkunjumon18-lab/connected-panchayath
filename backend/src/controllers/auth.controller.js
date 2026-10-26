@@ -37,9 +37,11 @@ const changePasswordSchema = z.object({
 });
 
 const updateProfileSchema = z.object({
-  email: z.string().email('Invalid email address').optional(),
-  address: z.string().min(5, 'Address is too short').optional(),
-  mobile: z.string().regex(/^[6-9]\d{9}$/, 'Invalid mobile').optional()
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  address: z.string().optional().or(z.literal('')),
+  mobile: z.string().regex(/^[6-9]\d{9}$/, 'Invalid mobile').optional().or(z.literal('')),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional().or(z.literal('')),
+  date_of_birth: z.string().optional().or(z.literal(''))
 });
 
 /**
@@ -126,7 +128,12 @@ async function register(req, res) {
       panchayat_code: p.panchayat_code,
       officer_id: null,
       citizen_id: result.citizenId,
-      designation: null
+      designation: null,
+      date_of_birth: data.date_of_birth,
+      gender: data.gender,
+      address: data.address,
+      aadhaar_no: data.aadhaar_no,
+      aadhaar_masked: `XXXX XXXX ${String(data.aadhaar_no).slice(-4)}`
     }
   }, 'Registration successful', 201);
 }
@@ -178,64 +185,14 @@ async function login(req, res) {
   // Update last_login_at
   await db.query('UPDATE users SET last_login_at = NOW() WHERE user_id = ?', [user.user_id]);
 
-  // Load profile details
-  let profile = {
-    user_id: user.user_id,
-    role: user.role_name,
-    full_name: user.username,
-    email: user.email,
-    mobile: user.mobile,
-    panchayat_id: null,
-    panchayat_name: null,
-    panchayat_code: null,
-    officer_id: null,
-    citizen_id: null,
-    designation: null
-  };
-
-  if (user.role_name === 'CITIZEN') {
-    const citizens = await db.query(
-      `SELECT c.citizen_id, c.full_name, c.panchayat_id, p.panchayat_name, p.panchayat_code
-       FROM citizens c
-       JOIN panchayats p ON c.panchayat_id = p.panchayat_id
-       WHERE c.user_id = ?`,
-      [user.user_id]
-    );
-    if (citizens.length) {
-      const c = citizens[0];
-      profile.citizen_id = c.citizen_id;
-      profile.full_name = c.full_name;
-      profile.panchayat_id = c.panchayat_id;
-      profile.panchayat_name = c.panchayat_name;
-      profile.panchayat_code = c.panchayat_code;
-    }
-  } else if (user.role_name === 'OFFICER') {
-    const officers = await db.query(
-      `SELECT o.officer_id, o.full_name, o.designation, o.panchayat_id, p.panchayat_name, p.panchayat_code
-       FROM panchayat_officers o
-       JOIN panchayats p ON o.panchayat_id = p.panchayat_id
-       WHERE o.user_id = ?`,
-      [user.user_id]
-    );
-    if (officers.length) {
-      const o = officers[0];
-      profile.officer_id = o.officer_id;
-      profile.full_name = o.full_name;
-      profile.designation = o.designation;
-      profile.panchayat_id = o.panchayat_id;
-      profile.panchayat_name = o.panchayat_name;
-      profile.panchayat_code = o.panchayat_code;
-    }
-  } else if (user.role_name === 'ADMIN') {
-    profile.full_name = 'System Administrator';
-  }
+  const profile = await fetchUserProfile(user.user_id);
 
   const tokenPayload = {
     user_id: user.user_id,
     role: user.role_name,
-    panchayat_id: profile.panchayat_id,
-    officer_id: profile.officer_id,
-    citizen_id: profile.citizen_id
+    panchayat_id: profile ? profile.panchayat_id : null,
+    officer_id: profile ? profile.officer_id : null,
+    citizen_id: profile ? profile.citizen_id : null
   };
 
   const token = jwt.sign(tokenPayload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN });
@@ -246,11 +203,9 @@ async function login(req, res) {
 }
 
 /**
- * Get current user profile
+ * Helper to fetch complete, consistent user profile
  */
-async function getMe(req, res) {
-  const userId = req.user.user_id;
-
+async function fetchUserProfile(userId) {
   const users = await db.query(
     `SELECT u.user_id, u.username, u.email, u.mobile, u.status, u.created_at, u.last_login_at, r.role_name
      FROM users u
@@ -260,7 +215,7 @@ async function getMe(req, res) {
   );
 
   if (!users.length) {
-    return error(res, 'User not found', {}, 404);
+    return null;
   }
 
   const user = users[0];
@@ -273,12 +228,19 @@ async function getMe(req, res) {
     status: user.status,
     created_at: user.created_at,
     last_login_at: user.last_login_at,
+    full_name: user.username,
     panchayat_id: null,
     panchayat_name: null,
     panchayat_code: null,
     officer_id: null,
     citizen_id: null,
-    designation: null
+    designation: null,
+    date_of_birth: null,
+    gender: null,
+    address: null,
+    aadhaar_no: null,
+    aadhaar_masked: null,
+    district: null
   };
 
   if (user.role_name === 'CITIZEN') {
@@ -296,9 +258,9 @@ async function getMe(req, res) {
       profile.full_name = c.full_name;
       profile.date_of_birth = c.date_of_birth;
       profile.gender = c.gender;
-      // Mask Aadhaar: XXXX XXXX 1234
-      profile.aadhaar_masked = `XXXX XXXX ${c.aadhaar_no.slice(-4)}`;
       profile.address = c.address;
+      profile.aadhaar_no = c.aadhaar_no;
+      profile.aadhaar_masked = `XXXX XXXX ${c.aadhaar_no ? String(c.aadhaar_no).slice(-4) : '1234'}`;
       profile.panchayat_id = c.panchayat_id;
       profile.panchayat_name = c.panchayat_name;
       profile.panchayat_code = c.panchayat_code;
@@ -329,6 +291,20 @@ async function getMe(req, res) {
     profile.full_name = 'System Administrator';
   }
 
+  return profile;
+}
+
+/**
+ * Get current user profile
+ */
+async function getMe(req, res) {
+  const userId = req.user.user_id;
+  const profile = await fetchUserProfile(userId);
+
+  if (!profile) {
+    return error(res, 'User not found', {}, 404);
+  }
+
   return success(res, profile);
 }
 
@@ -355,7 +331,7 @@ async function changePassword(req, res) {
   await db.query('UPDATE users SET password_hash = ? WHERE user_id = ?', [newHash, userId]);
   await auditService.logAction(req, 'CHANGE_PASSWORD', 'users', userId, 'Password updated');
 
-  return success(res, null, 'Password changed successfully');
+  return success(res, { success: true }, 'Password changed successfully');
 }
 
 /**
@@ -364,27 +340,46 @@ async function changePassword(req, res) {
 async function updateProfile(req, res) {
   const userId = req.user.user_id;
   const role = req.user.role;
-  const { email, address } = req.body;
+  const { email, address, gender, date_of_birth } = req.body;
 
   if (role === 'CITIZEN') {
-    if (email) {
-      // Check if email already used by someone else
-      const existing = await db.query('SELECT user_id FROM users WHERE email = ? AND user_id != ?', [email, userId]);
+    if (email && email.trim()) {
+      const trimmedEmail = email.trim();
+      const existing = await db.query('SELECT user_id FROM users WHERE email = ? AND user_id != ?', [trimmedEmail, userId]);
       if (existing.length) {
         return error(res, 'Email already in use by another account', { email: 'Email already exists' }, 409);
       }
-      await db.query('UPDATE users SET email = ? WHERE user_id = ?', [email, userId]);
-      await db.query('UPDATE citizens SET email = ? WHERE user_id = ?', [email, userId]);
+      await db.query('UPDATE users SET email = ? WHERE user_id = ?', [trimmedEmail, userId]);
+      await db.query('UPDATE citizens SET email = ? WHERE user_id = ?', [trimmedEmail, userId]);
     }
 
-    if (address) {
-      await db.query('UPDATE citizens SET address = ? WHERE user_id = ?', [address, userId]);
+    if (address !== undefined) {
+      await db.query('UPDATE citizens SET address = ? WHERE user_id = ?', [address.trim(), userId]);
+    }
+
+    if (gender) {
+      await db.query('UPDATE citizens SET gender = ? WHERE user_id = ?', [gender, userId]);
+    }
+
+    if (date_of_birth && date_of_birth.trim()) {
+      await db.query('UPDATE citizens SET date_of_birth = ? WHERE user_id = ?', [date_of_birth.trim().slice(0, 10), userId]);
     }
 
     await auditService.logAction(req, 'UPDATE_PROFILE', 'citizens', req.user.citizen_id, 'Citizen updated profile');
+  } else if (role === 'OFFICER') {
+    if (email && email.trim()) {
+      const trimmedEmail = email.trim();
+      const existing = await db.query('SELECT user_id FROM users WHERE email = ? AND user_id != ?', [trimmedEmail, userId]);
+      if (existing.length) {
+        return error(res, 'Email already in use by another account', { email: 'Email already exists' }, 409);
+      }
+      await db.query('UPDATE users SET email = ? WHERE user_id = ?', [trimmedEmail, userId]);
+      await db.query('UPDATE panchayat_officers SET email = ? WHERE user_id = ?', [trimmedEmail, userId]);
+    }
   }
 
-  return success(res, null, 'Profile updated successfully');
+  const updatedProfile = await fetchUserProfile(userId);
+  return success(res, updatedProfile || { success: true }, 'Profile updated successfully');
 }
 
 module.exports = {
