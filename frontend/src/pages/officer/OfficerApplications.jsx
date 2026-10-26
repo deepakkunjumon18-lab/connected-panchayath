@@ -129,6 +129,25 @@ export default function OfficerApplications() {
     }
   };
 
+  // Fetch initial outgoing count for tab badge
+  const fetchOutgoingCount = async () => {
+    try {
+      const res = await getVerificationRequests({
+        direction: 'outgoing',
+        page: 1,
+        limit: 1
+      });
+      const data = res.data || res;
+      setOutTotal(data.total || 0);
+    } catch (e) {
+      // non-blocking
+    }
+  };
+
+  useEffect(() => {
+    fetchOutgoingCount();
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'applications') {
       fetchApplications();

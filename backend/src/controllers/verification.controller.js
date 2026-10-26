@@ -43,12 +43,12 @@ async function getVerificationRequests(req, res) {
       return error(res, 'Access denied', {}, 403);
     }
 
-    if (status) {
+    if (status && status !== 'undefined' && status !== 'null') {
       whereClauses.push('vr.status = ?');
       params.push(status);
     }
 
-    if (search) {
+    if (search && search !== 'undefined' && search !== 'null') {
       whereClauses.push('(vr.request_no LIKE ? OR a.application_no LIKE ? OR cit.full_name LIKE ? OR vr.subject_name LIKE ?)');
       const q = `%${search}%`;
       params.push(q, q, q, q);
@@ -187,6 +187,7 @@ async function getVerificationRequestById(req, res) {
               cit.full_name as applicant_name, cit.aadhaar_no as applicant_aadhaar,
               ct.certificate_name, ct.certificate_code,
               rp.panchayat_name as requesting_panchayat_name, rp.panchayat_code as requesting_panchayat_code,
+              rp.panchayat_name as home_panchayat_name, rp.panchayat_code as home_panchayat_code,
               vp.panchayat_name as verifying_panchayat_name, vp.panchayat_code as verifying_panchayat_code,
               po.full_name as signer_name, po.designation as signer_designation,
               (vr.status = 'PENDING' AND NOW() > vr.due_at) as is_overdue
@@ -264,6 +265,14 @@ async function getVerificationRequestById(req, res) {
       request_details: vr.request_details,
       subject_party: vr.subject_party,
       subject_name: vr.subject_name,
+      applicant_name: vr.applicant_name,
+      application_purpose: vr.application_purpose,
+      home_panchayat_name: vr.requesting_panchayat_name,
+      home_panchayat_code: vr.requesting_panchayat_code,
+      requesting_panchayat_name: vr.requesting_panchayat_name,
+      requesting_panchayat_code: vr.requesting_panchayat_code,
+      verifying_panchayat_name: vr.verifying_panchayat_name,
+      verifying_panchayat_code: vr.verifying_panchayat_code,
       // Aadhaar unmasked ONLY for verifying officer on this page per section 13
       subject_aadhaar: isVerifyingOfficer ? vr.subject_aadhaar : (vr.subject_aadhaar ? `XXXX XXXX ${vr.subject_aadhaar.slice(-4)}` : null),
       subject_details: vr.subject_details,

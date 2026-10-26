@@ -10,7 +10,8 @@
 | **Phase 3** | Full End-to-End Scenarios (S1 – S7) | 53 | 53 | 2 | **PASSED** |
 | **Phase 4** | Hardening Pass | 15 | 15 | 2 | **PASSED** |
 | **Phase 5** | Regression & Clean Finish | 25 | 25 | 0 | **PASSED** |
-| **Total** | **Comprehensive Full-Stack Coverage** | **238** | **238** | **10** | **ALL PASSED** |
+| **Phase 5.1** | Officer Portal Deep Audit & Full Flow Verification | 10 | 10 | 3 | **PASSED** |
+| **Total** | **Comprehensive Full-Stack Coverage** | **248** | **248** | **13** | **ALL PASSED** |
 
 ---
 
@@ -30,6 +31,9 @@
 | **D-010** | Backend / Testing | Run `npm test` in backend directory | Expected test runner to complete and exit with code 0; Actual process stayed open indefinitely | `e2e.test.js` did not register an `after()` hook to close the test Express server and end the MySQL connection pool | [`backend/tests/e2e.test.js`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/backend/tests/e2e.test.js) | PASSED (verified clean exit 0 on backend test suites) |
 | **D-011** | Frontend / API & Backend Controller | Open Officer Verify & Request (Home Applications) | Returned 0 applications even when applications were assigned to officer's panchayat | `getApplications` in `frontend/src/api/applications.js` converted `{ status: undefined }` to string `"status=undefined"`, causing backend SQL `WHERE a.status = 'undefined'` | [`frontend/src/api/applications.js`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/frontend/src/api/applications.js), [`backend/src/controllers/applications.controller.js`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/backend/src/controllers/applications.controller.js) | PASSED (clean param serialization verified in Chrome) |
 | **D-012** | Frontend / Admin Module | View Master Data and Audit Logs tables | Master Data items showed missing codes/labels; Audit Logs showed `Invalid Date` and missing target entities | `AdminMasterData.jsx` and `AdminAuditLogs.jsx` used mismatched field names (`item_code`, `created_at`, `target_table`) instead of DB schema (`code`, `value`, `action_time`, `table_name`, `record_id`) | [`frontend/src/pages/admin/AdminMasterData.jsx`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/frontend/src/pages/admin/AdminMasterData.jsx), [`frontend/src/pages/admin/AdminAuditLogs.jsx`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/frontend/src/pages/admin/AdminAuditLogs.jsx) | PASSED (verified full data rendering across all 18 master data items & 15+ audit logs in Chrome) |
+| **D-013** | Frontend / Officer Incoming Detail | Open `/officer/incoming/:id` to review an incoming verification request | Originating Panchayat name and Application Purpose displayed blank; Modal prompt had empty originating panchayat | Component accessed `request.home_panchayat_name` and `request.purpose`, but backend query returned `requesting_panchayat_name` and `application_purpose` | [`OfficerIncomingDetail.jsx`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/frontend/src/pages/officer/OfficerIncomingDetail.jsx), [`backend/src/controllers/verification.controller.js`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/backend/src/controllers/verification.controller.js) | PASSED (originating panchayat and purpose rendered accurately in browser; verified in `test_officer_full_flow.js`) |
+| **D-014** | Frontend / Officer Applications | Open `/officer/applications` as an officer with outgoing verification requests | "Outgoing Requests" tab badge displayed `Outgoing Requests (0)` on initial load until clicked | Tab count only loaded during tab click switch; initial mount only triggered `fetchApplications()`, leaving `outTotal = 0` | [`OfficerApplications.jsx`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/frontend/src/pages/officer/OfficerApplications.jsx) | PASSED (tab badge immediately displays `Outgoing Requests 1` on initial page load) |
+| **D-015** | Backend / Verification & Certificates | Send query parameters `?status=undefined` or `?search=undefined` | SQL query appended literal string match `vr.status = 'undefined'` or `search LIKE '%undefined%'` | Query parameter check only tested truthiness `if (status)` and `if (search)` without guarding against stringified `'undefined'` and `'null'` | [`backend/src/controllers/verification.controller.js`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/backend/src/controllers/verification.controller.js), [`backend/src/controllers/certificates.controller.js`](file:///c:/Users/Vishnu%20Prasannan/Downloads/conneced-panchayath/backend/src/controllers/certificates.controller.js) | PASSED (verified clean parameter handling and empty/valid query filtering) |
 
 ---
 
@@ -139,7 +143,13 @@ node scripts/test_phase2_frontend.js
 node scripts/test_phase3_scenarios.js
 ```
 
-### 5. Run Frontend Production Build Validation
+### 5. Run Full Officer Portal Flow Verification (Verify & Request, Incoming RSA Signing, Issued Certificates)
+```bash
+node scripts/test_officer_full_flow.js
+node scripts/deep_officer_check.js
+```
+
+### 6. Run Frontend Production Build Validation
 ```bash
 npm --prefix frontend run build
 ```

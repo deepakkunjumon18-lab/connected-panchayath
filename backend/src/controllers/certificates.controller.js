@@ -34,7 +34,7 @@ async function getCertificates(req, res) {
     }
     // ADMIN sees all certificates
 
-    if (search) {
+    if (search && search !== 'undefined' && search !== 'null') {
       whereClauses.push(
         '(c.certificate_no LIKE ? OR ct.certificate_name LIKE ? OR cit.full_name LIKE ? OR c.verification_code LIKE ?)'
       );

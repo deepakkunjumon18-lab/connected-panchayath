@@ -350,7 +350,9 @@ export default function OfficerIncomingDetail() {
             <div className="space-y-3 text-xs">
               <div>
                 <span className="text-slate-500 block">Originating Panchayat</span>
-                <span className="font-bold text-slate-900">{request.home_panchayat_name}</span>
+                <span className="font-bold text-slate-900">
+                  {request.home_panchayat_name || request.requesting_panchayat?.panchayat_name || request.requesting_panchayat_name}
+                </span>
               </div>
 
               <div>
@@ -360,13 +362,15 @@ export default function OfficerIncomingDetail() {
 
               <div>
                 <span className="text-slate-500 block">Applicant Name</span>
-                <span className="font-medium text-slate-800">{request.applicant_name}</span>
+                <span className="font-medium text-slate-800">
+                  {request.applicant_name || request.applicant?.full_name}
+                </span>
               </div>
 
               <div>
                 <span className="text-slate-500 block">Application Purpose</span>
                 <p className="text-slate-700 bg-slate-50 p-2.5 rounded border border-slate-200 mt-1">
-                  {request.purpose}
+                  {request.application_purpose || request.purpose}
                 </p>
               </div>
 
@@ -412,7 +416,7 @@ export default function OfficerIncomingDetail() {
                 You are recording a decision of: {signModal.decision}
               </span>
               <span>
-                Subject: {request.subject_name} ({request.subject_party}) for {request.home_panchayat_name}
+                Subject: {request.subject_name} ({request.subject_party}) for {request.home_panchayat_name || request.requesting_panchayat?.panchayat_name || request.requesting_panchayat_name}
               </span>
             </div>
           </div>
