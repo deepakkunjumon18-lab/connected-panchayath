@@ -1,0 +1,10 @@
+node_modules/
+.env
+backend/uploads/documents/*
+!backend/uploads/documents/.gitkeep
+backend/storage/certificates/*
+!backend/storage/certificates/.gitkeep
+backend/storage/mail-preview/*
+!backend/storage/mail-preview/.gitkeep
+dist/
+*.log

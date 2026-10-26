@@ -1,0 +1,16 @@
+{
+  "name": "connected-panchayat-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Connected Panchayat - Inter-Panchayat Verification System",
+  "scripts": {
+    "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "install:all": "npm install && npm --prefix backend install && node -e \"if (require('fs').existsSync('frontend/package.json')) { require('child_process').execSync('npm --prefix frontend install', { stdio: 'inherit' }); }\"",
+    "db:reset": "npm --prefix backend run db:reset",
+    "test": "npm --prefix backend test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "playwright": "^1.64.1"
+  }
+}
